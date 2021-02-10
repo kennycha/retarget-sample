@@ -130,6 +130,9 @@ function App() {
     if (currentBone && currentBoneDataField === 'matrix') {
       console.log('currentBone.matrix: ', currentBone.matrix.elements)
     }
+    if (currentBone && currentBoneDataField === 'matrixWorld') {
+      console.log('currentBone.matrixWorld: ', currentBone.matrixWorld.elements)
+    }
   }, [currentBone, currentBoneDataField])
 
   const handleFileChange = (event : any) => {
