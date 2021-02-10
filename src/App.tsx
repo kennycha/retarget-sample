@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import _ from 'lodash';
 import * as THREE from 'three';
@@ -17,11 +17,25 @@ const FileInputContainer = styled.div`
   width: 100%;
   height: 50px;
   display: flex;
-  justify-content: center;
+  justify-content: space-around;
   margin-top: 30px;
 `
 
 const FileInput = styled.input`
+`
+
+const InfoBoxContainer = styled.ul`
+  width: 400px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  margin-block-start: 0px;
+  margin-block-end: 0px;
+  padding-inline-start: 0px;
+`
+
+const InfoBox = styled.li`
+
 `
 
 const MainContainer = styled.div`
@@ -40,6 +54,7 @@ const RenderingPanel = styled.div`
 `
 
 const InputGroup = styled.li`
+  width: 500px;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -50,30 +65,72 @@ const BoneTitle = styled.div`
   font-size: 1.2rem;
 `
 
+const ButtonGroup = styled.ul`
+  height: 50px;
+  list-style: none;
+  margin-block-start: 0px;
+  padding-inline-start: 0px;
+`
+
+const Button = styled.button`
+
+`
+
 const InputContainer = styled.ul`
+  height: 50px;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
   margin-block-start: 0px;
   padding-inline-start: 5px;
 `
 
-const Label = styled.label`
-
+const InputInnerContainer = styled.div`
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: 30px 1fr;
 `
 
-const Input = styled.input`
-  margin-left: 10px;
+interface ILabel {
+  mb?: boolean
+  lg?: boolean
+}
+
+const Label = styled.div<ILabel>`
+  margin-bottom: ${({ mb }) => mb ? '10px' : undefined};
+  font-size: ${({ lg }) => lg ? '1.5rem' : '1rem'};
 `
 
-const BONE_PROPERTIES = [
-  'position', 'quaternion', 'scale'
+const infos = [
+  'glb 형식만 지원합니다.',
+  'rotate: left mouse',
+  'pan: ctrl + left mouse',
+  'zoom: wheel',
 ]
 
 function App() {
   const [inputUrl, setInputUrl] = useState<string | undefined>(undefined)
   const [currentBone, setCurrentBone] = useState<THREE.Bone | undefined>(undefined)
+  const [currentBoneDataField, setCurrentBoneDataField] = useState<string>('matrix')
+  const [currentBoneDataValues, setCurrentBoneDataValues] = useState<number[]>([])
+
+  const boneDataFields = {
+    'matrix': currentBone?.matrix.elements,
+    'matrixWorld': currentBone?.matrixWorld.elements,
+    // 'modelViewMatrix': currentBone?.modelViewMatrix.elements,  // 개발자 도구로 해보니까 영향 안 줌
+    // 'normalMatrix': currentBone?.normalMatrix.elements,
+  }
 
   useRendering({ inputUrl, currentBone, setCurrentBone })
+
+  useEffect(() => {
+    if (currentBone) {
+      console.log('currentBone: ', currentBone)
+    }
+    if (currentBone && currentBoneDataField === 'matrix') {
+      console.log('currentBone.matrix: ', currentBone.matrix.elements)
+    }
+  }, [currentBone, currentBoneDataField])
 
   const handleFileChange = (event : any) => {
     if (!_.isEmpty(event.target.files)) {
@@ -81,6 +138,12 @@ function App() {
       const fileUrl = URL.createObjectURL(file)
       setInputUrl(fileUrl)
     }
+  }
+
+  const handleButtonClick = ({ event, field } : { event : any, field : string }) => {
+    setCurrentBoneDataField(field)
+    // @ts-ignore
+    setCurrentBoneDataValues(boneDataFields[field])
   }
 
   return (
@@ -92,6 +155,9 @@ function App() {
           accept='.glb'
           onChange={handleFileChange}
         />
+        <InfoBoxContainer>
+          {_.map(infos, (info, idx) => <InfoBox key={idx}>{info}</InfoBox>)}
+        </InfoBoxContainer>
       </FileInputContainer>
       <MainContainer>
         <RenderingPanel id='renderingDiv' />
@@ -99,18 +165,34 @@ function App() {
           <BoneTitle>
             Current Bone: {currentBone?.name}
           </BoneTitle>
-          {_.map(BONE_PROPERTIES, (property, idx) => (
-          <InputContainer key={`container-${idx}`}>
-            <Label key={`label-${idx}`}>{property}</Label>
-            <Input
-              key={`input-${idx}`} 
-              
-              />
-          </InputContainer>))}
+          <ButtonGroup>
+            {_.map(Object.keys(boneDataFields), (field, idx) => (
+            <Button
+              key={idx}
+              onClick={(event) => {
+                handleButtonClick({ event, field })
+              }}
+            >
+              {field}
+            </Button>))}
+          </ButtonGroup>
+          <InputContainer>
+            <Label mb lg>{currentBoneDataField}</Label>
+            {_.map(currentBoneDataValues, (value, idx) => (
+              <InputInnerContainer key={idx}>
+                <Label key={`index-${idx}`}>
+                  {idx}
+                </Label>
+                <Label key={`label-${idx}`}>
+                  {value}
+                </Label>
+              </InputInnerContainer>
+            ))}
+          </InputContainer>
         </InputGroup>
       </MainContainer>
     </>
   );
 }
 
-export default App;
+export default React.memo(App);

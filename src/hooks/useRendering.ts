@@ -1,9 +1,11 @@
-import { Dispatch, SetStateAction, useCallback, useEffect } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { DragControls } from 'three/examples/jsm/controls/DragControls';
+
+const MAP_TYPES = ['map', 'aoMap', 'emissiveMap', 'glossinessMap', 'metalnessMap', 'normalMap', 'roughnessMap', 'specularMap'];
 
 interface useRenderingProps {
   inputUrl: string | undefined,
@@ -12,6 +14,8 @@ interface useRenderingProps {
 }
 
 export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRenderingProps) => {
+  const [contents, setContents] = useState<any[]>([]);
+  const [theScene, setTheScene] = useState<THREE.Scene | undefined>(undefined);
 
   const createScene = useCallback(() => {
     const scene = new THREE.Scene();
@@ -26,16 +30,32 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
         renderingDiv.removeChild(renderingDiv.firstChild);
       }
     }
-  }, [])
+    contents.forEach((content : any) => {
+      // scene에서 삭제
+      theScene?.remove(content);
+      // content 및 하위 노드들이 mesh라면 geometry 및 material dispose
+      content.traverse((node : any) => {
+        if (!node.isMesh) return;
+        node.geometry.dispose();
+        const materials : any = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach((material : any) => {
+          MAP_TYPES.forEach((mapType) => {
+            material[mapType]?.dispose();
+          });
+        });
+      });
+    });
+    setContents([]);
+    setTheScene(undefined);
+  }, [contents, theScene])
 
   const createCamera = useCallback(() => {
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 500);
-    camera.position.set(0, 0, 5);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(-0.2521, 0.14948, 3.2656);
     return camera;
   }, [])
 
-  const createRenderer = useCallback(({ renderingDiv }) => {
+  const createRenderer = useCallback(() => {
     const renderer = new THREE.WebGL1Renderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
@@ -85,6 +105,7 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
     // groundMesh.rotation.x = -Math.PI;
     groundMesh.receiveShadow = true;
     scene.add(groundMesh);
+    setContents((prevContents) => ([...prevContents, groundMesh]));
 
     const xMaterial = new THREE.LineBasicMaterial({ color: '#EA2027' });
     const yMaterial = new THREE.LineBasicMaterial({ color: '#0652DD' });
@@ -103,6 +124,7 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
     const zLine = new THREE.Line(zGeometry, zMaterial);
 
     scene.add(xLine, yLine, zLine);
+    setContents((prevContents) => ([...prevContents, xLine, yLine, zLine]));
   }, [])
 
   const createCameraControls = useCallback(({ camera, renderer }) => {
@@ -118,6 +140,7 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
 
   const createTransformControls = useCallback(({ scene, camera, renderer, cameraControls }) => {
     const transformControls = new TransformControls(camera, renderer.domElement);
+    transformControls.mode = 'rotate'
     transformControls.addEventListener('change', () => {
       renderer.render(scene, camera);
     });
@@ -129,7 +152,6 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
   }, [])
   
   const addModel = ({ scene, object } : { scene: THREE.Scene, object: any}) => {
-    console.log(object)
     object.scene.traverse((child: any) => {
       if (child.isMesh) {
         child.castShadow = true;
@@ -154,6 +176,7 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
     skeletonHelper: THREE.SkeletonHelper, camera: THREE.PerspectiveCamera, renderer: THREE.WebGL1Renderer, cameraControls: OrbitControls, transformControls: TransformControls
   }) => {
     skeletonHelper.bones.forEach((bone) => {
+      bone.matrixAutoUpdate = false;
       const boneMaterial = new THREE.MeshPhongMaterial({
         color: 0xffffff,
         opacity: 0.5,
@@ -174,15 +197,19 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
       cameraControls.enabled = true;
     });
     dragControls.addEventListener('dragstart', (event) => {
-      if (currentBone !== event.object.parent) {
-        transformControls.attach(event.object.parent);
-        setCurrentBone(event.object.parent);
-        dragControls.enabled = false;
+      const bone = event.object.parent
+      bone.matrixAutoUpdate = true;
+      if (bone !== currentBone) {
+        setCurrentBone(bone)
       }
+      transformControls.attach(event.object.parent);
+      dragControls.enabled = false;
     });
     dragControls.addEventListener('dragend', (event) => {
       dragControls.enabled = true;
-    });    
+      const bone = event.object.parent
+      bone.matrixAutoUpdate = false;
+    });
   }, [currentBone, setCurrentBone]);
 
   const resizeRendererToDisplaySize = ({ renderer } : { renderer: THREE.WebGL1Renderer }) => {
@@ -203,19 +230,25 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
     const renderingDiv = document.getElementById('renderingDiv');
     if (renderingDiv) {
       const scene = createScene();
+      setTheScene(scene)
       const camera = createCamera()
-      const renderer = createRenderer({ renderingDiv });
+      const renderer = createRenderer();
       addLights({ scene });
       addGround({ scene, camera, renderer });
       const cameraControls = createCameraControls({ camera, renderer });
       const transformControls = createTransformControls({ scene, camera, renderer, cameraControls })
+      setContents((prevContents) => ([...prevContents, transformControls]));
       if (inputUrl) {
         const loader = new GLTFLoader();
         loader.load(inputUrl, (object) => {
-          console.log(object);
           const model = addModel({ scene, object });
+          setContents((prevContents) => ([...prevContents, model]));
           const skeletonHelper = addSkeletonHelper({ scene, model });
+          setContents((prevContents) => ([...prevContents, skeletonHelper]));
           addJointMeshes({ skeletonHelper, camera, renderer, cameraControls, transformControls });
+          
+          console.log('object: ', object);
+          console.log('skeletonHelper: ', skeletonHelper);
         })
       }
   
@@ -237,5 +270,6 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
         clearRendering({ renderingDiv });
       }
     }
-  }, [addGround, addJointMeshes, addLights, clearRendering, createCamera, createCameraControls, createRenderer, createScene, createTransformControls, inputUrl])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputUrl])
 }
