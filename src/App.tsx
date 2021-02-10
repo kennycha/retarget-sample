@@ -146,6 +146,12 @@ function App() {
     setCurrentBoneDataValues(boneDataFields[field])
   }
 
+  const handleToggleAutoUpdate = () => {
+    if (currentBone) {
+      currentBone.matrixAutoUpdate = !currentBone.matrixAutoUpdate;
+    }
+  }
+
   return (
     <>
       <Title>Retarget Sample</Title>
@@ -175,6 +181,7 @@ function App() {
             >
               {field}
             </Button>))}
+            {currentBone && <Button onClick={handleToggleAutoUpdate}>Toggle AutoUpdate</Button>}
           </ButtonGroup>
           <InputContainer>
             <Label mb lg>{currentBoneDataField}</Label>
