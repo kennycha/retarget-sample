@@ -3,7 +3,6 @@ import styled from 'styled-components';
 import _ from 'lodash';
 import * as THREE from 'three';
 import { useRendering } from 'hooks/useRendering';
-import { SkeletonHelper } from 'three';
 
 const Title = styled.div`
   margin-top: 50px;
