@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import _ from 'lodash';
 import * as THREE from 'three';
 import { useRendering } from 'hooks/useRendering';
+import { SkeletonHelper } from 'three';
 
 const Title = styled.div`
   margin-top: 50px;
@@ -113,6 +114,7 @@ function App() {
   const [currentBone, setCurrentBone] = useState<THREE.Bone | undefined>(undefined)
   const [currentBoneDataField, setCurrentBoneDataField] = useState<string>('matrix')
   const [currentBoneDataValues, setCurrentBoneDataValues] = useState<number[]>([])
+  const [theSkeletonHelepr, setTheSkeletonHelper] = useState<THREE.SkeletonHelper | undefined>(undefined)
 
   const boneDataFields = {
     'matrix': currentBone?.matrix.elements,
@@ -121,7 +123,7 @@ function App() {
     // 'normalMatrix': currentBone?.normalMatrix.elements,
   }
 
-  useRendering({ inputUrl, currentBone, setCurrentBone })
+  useRendering({ inputUrl, currentBone, setCurrentBone, setTheSkeletonHelper })
 
   useEffect(() => {
     if (currentBone) {
@@ -155,6 +157,41 @@ function App() {
     }
   }
 
+  const handleReversePositionX = () => {
+    if (currentBone) {
+      const { x, y, z } = currentBone.position
+      console.log(x)
+      currentBone.position.set(-x, y, z)
+    }
+  }
+
+  const handleReversePositionY = () => {
+    if (currentBone) {
+      const { x, y, z } = currentBone.position
+      currentBone.position.set(x, -y, z)
+    }
+  }
+
+  const handleReversePositionZ = () => {
+    if (currentBone) {
+      const { x, y, z } = currentBone.position
+      currentBone.position.set(x, y, -z)
+    }
+  }
+
+  const handleReverseAllBonesPosition = () => {
+    if (theSkeletonHelepr) {
+      console.log('bones: ', theSkeletonHelepr.bones)
+      theSkeletonHelepr.bones.forEach((bone, idx) => {
+        if (idx === 0) {
+          const { x, y, z, w } = bone.quaternion;
+          // bone.position.set(0, 0, 0);
+          bone.quaternion.set(-x, y, z, w)
+        }
+      })
+    }
+  }
+
   return (
     <>
       <Title>Retarget Sample</Title>
@@ -185,6 +222,11 @@ function App() {
               {field}
             </Button>))}
             {currentBone && <Button onClick={handleToggleAutoUpdate}>Toggle AutoUpdate</Button>}
+            <br />
+            {currentBone && <Button onClick={handleReversePositionX}>Reverse X</Button>}
+            {currentBone && <Button onClick={handleReversePositionY}>Reverse Y</Button>}
+            {currentBone && <Button onClick={handleReversePositionZ}>Reverse Z</Button>}
+            {theSkeletonHelepr && <Button onClick={handleReverseAllBonesPosition}>Reverse Bones</Button>}
           </ButtonGroup>
           <InputContainer>
             <Label mb lg>{currentBoneDataField}</Label>

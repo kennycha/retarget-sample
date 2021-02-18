@@ -11,9 +11,10 @@ interface useRenderingProps {
   inputUrl: string | undefined,
   currentBone: THREE.Bone| undefined,
   setCurrentBone: Dispatch<SetStateAction<THREE.Bone | undefined>>
+  setTheSkeletonHelper: Dispatch<SetStateAction<THREE.SkeletonHelper | undefined>>
 }
 
-export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRenderingProps) => {
+export const useRendering = ({inputUrl, currentBone, setCurrentBone, setTheSkeletonHelper} : useRenderingProps) => {
   const [contents, setContents] = useState<any[]>([]);
   const [theScene, setTheScene] = useState<THREE.Scene | undefined>(undefined);
 
@@ -167,6 +168,7 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
     const skeletonHelper = new THREE.SkeletonHelper(model);
     skeletonHelper.visible = true;
     scene.add(skeletonHelper);
+    setTheSkeletonHelper(skeletonHelper)
     return skeletonHelper;
   };
 
@@ -176,9 +178,9 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
     skeletonHelper: THREE.SkeletonHelper, camera: THREE.PerspectiveCamera, renderer: THREE.WebGL1Renderer, cameraControls: OrbitControls, transformControls: TransformControls
   }) => {
     skeletonHelper.bones.forEach((bone) => {
-      bone.matrixAutoUpdate = false;
+      // bone.matrixAutoUpdate = false;
       const boneMaterial = new THREE.MeshPhongMaterial({
-        color: 0xffffff,
+        color: 0x000000,
         opacity: 0.5,
         transparent: true 
       })
@@ -206,9 +208,12 @@ export const useRendering = ({inputUrl, currentBone, setCurrentBone} : useRender
       dragControls.enabled = false;
     });
     dragControls.addEventListener('dragend', (event) => {
-      dragControls.enabled = true;
-      const bone = event.object.parent
-      bone.matrixAutoUpdate = false;
+      // dragControls.enabled = true;
+      // const bone = event.object.parent
+      // bone.matrixAutoUpdate = false;
+    });
+    dragControls.addEventListener('dragging-changed', (event) => {
+      cameraControls.enabled = !event.value;
     });
   }, [currentBone, setCurrentBone]);
 
